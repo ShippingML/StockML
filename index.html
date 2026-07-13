@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>วิเคราะห์สต๊อคอะไหล่รายแผนก — มิตรลาว</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#f5f5f3; --bg2:#ffffff; --bg3:#f1efe8; --bg4:#e8e6df;
+  --border:rgba(0,0,0,0.08); --border2:rgba(0,0,0,0.14);
+  --text:#1a1a18; --text2:#5f5e5a; --text3:#888780;
+  --blue:#185FA5; --blue-l:#E6F1FB;
+  --green:#3B6D11; --green-l:#EAF3DE;
+  --red:#A32D2D; --red-l:#FCEBEB;
+  --amber:#854F0B; --amber-l:#FAEEDA;
+  --gray:#5F5E5A; --gray-l:#F1EFE8;
+  --sans:'IBM Plex Sans Thai',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{position:fixed;left:0;top:0;width:230px;height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;}
+.logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-badge{font-family:var(--mono);font-size:10px;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;}
+.logo-title{font-size:15px;font-weight:600;color:var(--text);line-height:1.3;}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.nav{flex:1;padding:14px 12px;overflow-y:auto;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--blue-l);color:var(--blue);font-weight:500;}
+.nav-icon{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;}
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border);}
+.data-range{font-size:11px;color:var(--text3);line-height:1.8;}
+
+/* MAIN */
+.main{margin-left:230px;padding:28px 32px;min-height:100vh;}
+.page{display:none;}
+.page.active{display:block;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* HEADER */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:26px;}
+.page-title{font-size:21px;font-weight:600;color:var(--text);}
+.page-subtitle{font-size:13px;color:var(--text3);margin-top:4px;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:11px;font-family:var(--mono);}
+.badge-blue{background:var(--blue-l);color:var(--blue);border:1px solid rgba(24,95,165,0.2);}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:22px;}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.blue::before{background:var(--blue);}
+.kpi.red::before{background:#E24B4A;}
+.kpi.green::before{background:#639922;}
+.kpi.amber::before{background:#BA7517;}
+.kpi-label{font-size:11px;color:var(--text3);margin-bottom:7px;}
+.kpi-value{font-family:var(--mono);font-size:22px;font-weight:500;}
+.kpi-value.blue{color:var(--blue);}
+.kpi-value.red{color:var(--red);}
+.kpi-value.green{color:var(--green);}
+.kpi-value.amber{color:var(--amber);}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;}
+.card-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.card-tag{font-size:10px;color:var(--text3);background:var(--bg3);padding:3px 8px;border-radius:5px;border:1px solid var(--border);}
+.grid-2{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:14px;}
+.grid-eq{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+.leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+
+/* BAR ROWS */
+.bar-list{display:flex;flex-direction:column;gap:9px;}
+.bar-row{display:flex;align-items:center;gap:10px;}
+.bar-name{font-size:12px;color:var(--text2);width:170px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:12px;background:var(--bg3);border-radius:6px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:6px;transition:width .5s ease;}
+.bar-amt{font-family:var(--mono);font-size:11px;color:var(--text2);width:90px;text-align:right;flex-shrink:0;}
+
+/* STATUS BADGE */
+.status-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:500;}
+.chip-up{background:var(--green-l);color:var(--green);}
+.chip-down{background:var(--red-l);color:var(--red);}
+.chip-flat{background:var(--gray-l);color:var(--gray);}
+.chip-none{background:var(--blue-l);color:var(--blue);}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:500px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{position:sticky;top:0;background:var(--bg3);color:var(--text3);font-weight:500;font-size:11px;text-align:right;padding:9px 11px;border-bottom:1px solid var(--border);z-index:5;}
+th:first-child,th:nth-child(2),th:nth-child(3){text-align:left;}
+td{padding:9px 11px;border-bottom:1px solid var(--border);color:var(--text2);text-align:right;vertical-align:middle;}
+td:first-child,td:nth-child(2),td:nth-child(3){text-align:left;}
+tr:hover:not(.total-row) td{background:var(--bg3);}
+.total-row td{font-weight:600;color:var(--text);background:var(--bg3);border-top:1px solid var(--border2);}
+.neg{color:var(--red);}
+.pos{color:var(--green);}
+.zero{color:var(--text3);}
+
+/* INSIGHT */
+.insight{border-left:3px solid;padding:11px 15px;border-radius:0 8px 8px 0;margin-bottom:10px;}
+.insight.red{border-color:#E24B4A;background:var(--red-l);}
+.insight.green{border-color:#639922;background:var(--green-l);}
+.insight.amber{border-color:#BA7517;background:var(--amber-l);}
+.insight.blue{border-color:var(--blue);background:var(--blue-l);}
+.insight-title{font-size:13px;font-weight:500;margin-bottom:4px;}
+.insight-body{font-size:12px;color:var(--text2);line-height:1.7;}
+.insight.red .insight-title{color:var(--red);}
+.insight.green .insight-title{color:var(--green);}
+.insight.amber .insight-title{color:var(--amber);}
+.insight.blue .insight-title{color:var(--blue);}
+
+/* STAT */
+.stat-list{display:flex;flex-direction:column;gap:8px;}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:8px;}
+.stat-key{font-size:12px;color:var(--text2);}
+.stat-val{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text);}
+
+/* SCROLL */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px;}
+
+/* PRINT */
+@media print{.sidebar{display:none;}.main{margin-left:0;padding:16px;}}
+
+@media(max-width:900px){
+  .sidebar{width:58px;}
+  .logo-title,.logo-sub,.logo-badge,.nav-item span,.data-range{display:none;}
+  .main{margin-left:58px;padding:18px;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .grid-2,.grid-eq{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-badge">SPARE PARTS</div>
+    <div class="logo-title">สต๊อคอะไหล่</div>
+    <div class="logo-sub">คลังพัสดุ มิตรลาว</div>
+  </div>
+  <nav class="nav">
+    <button class="nav-item active" onclick="showPage('overview',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>ภาพรวม</span>
+    </button>
+    <button class="nav-item" onclick="showPage('trend',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" stroke-width="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <span>แนวโน้มรายช่วง</span>
+    </button>
+    <button class="nav-item" onclick="showPage('dept',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>รายแผนก</span>
+    </button>
+    <button class="nav-item" onclick="showPage('table',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>ตารางข้อมูล</span>
+    </button>
+    <button class="nav-item" onclick="showPage('insight',this)">
+      <svg class="nav-icon" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>ข้อเสนอแนะ</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="data-range">ข้อมูล SAP<br>ธ.ค. 2567 – พ.ค. 2569<br>14 แผนก · 6 รอบ</div>
+  </div>
+</div>
+
+<main class="main">
+
+<!-- PAGE: OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div class="page-header">
+    <div>
+      <div class="page-title">ภาพรวมสต๊อคอะไหล่รายแผนก</div>
+      <div class="page-subtitle">คลังพัสดุมิตรลาว · ข้อมูล SAP ณ 15 พ.ค. 2569</div>
+    </div>
+    <span class="badge badge-blue"><span class="badge-dot"></span>SAP Live Data</span>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi blue">
+      <div class="kpi-label">มูลค่าสต๊อครวม ณ ปัจจุบัน</div>
+      <div class="kpi-value blue">4,708,823</div>
+      <div class="kpi-sub">บาท · ณ 15 พ.ค. 2569</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">ลดลงจากต้นงวด (ธ.ค. 67)</div>
+      <div class="kpi-value red">-70.9%</div>
+      <div class="kpi-sub">จาก 16,155,653 บาท</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-label">แผนกสต๊อคสูงสุด</div>
+      <div class="kpi-value amber">ลูกหีบ</div>
+      <div class="kpi-sub">937,781 บาท (19.9%)</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">ผลต่าง เม.ย. → พ.ค. 69</div>
+      <div class="kpi-value red">-3,654,623</div>
+      <div class="kpi-sub">บาท · ลดลงมากสุดในงวดล่าสุด</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">แนวโน้มมูลค่าสต๊อครวม 6 รอบ<span class="card-tag">TREND LINE</span></div>
+      <div class="legend">
+        <div class="leg"><div class="leg-sq" style="background:#185FA5"></div>มูลค่าสต๊อครวม (บาท)</div>
+      </div>
+      <div style="position:relative;height:230px;">
+        <canvas id="trendChartOv" role="img" aria-label="แนวโน้มมูลค่าสต๊อครวม 6 รอบ">มูลค่าสต๊อครวมลดลงจาก 16.15 ล้าน เหลือ 4.71 ล้านบาท</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">สัดส่วนสต๊อค ณ 15 พ.ค. 69<span class="card-tag">DONUT</span></div>
+      <div style="position:relative;height:190px;">
+        <canvas id="pieChartOv" role="img" aria-label="สัดส่วนสต๊อครายแผนก ณ 15 พ.ค. 2569">สัดส่วน: ลูกหีบ 20%, หม้อปั่น 18%, หม้อเคี่ยว 13%</canvas>
+      </div>
+      <div id="pieLegOv" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">สรุปสถานะแต่ละแผนก<span class="card-tag">STATUS</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="statusCards"></div>
+  </div>
+</div>
+
+<!-- PAGE: TREND -->
+<div class="page" id="page-trend">
+  <div class="page-header">
+    <div>
+      <div class="page-title">แนวโน้มสต๊อครายช่วงเวลา</div>
+      <div class="page-subtitle">เปรียบเทียบมูลค่าสต๊อคแต่ละแผนก 6 รอบการตรวจนับ</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">มูลค่าสต๊อครวมรายช่วง (บาท)<span class="card-tag">BAR + LINE</span></div>
+    <div class="legend">
+      <div class="leg"><div class="leg-sq" style="background:#185FA5"></div>มูลค่ารวม</div>
+    </div>
+    <div style="position:relative;height:260px;">
+      <canvas id="trendBar" role="img" aria-label="มูลค่าสต๊อครวมรายช่วง">มูลค่าสต๊อครวม 6 รอบ</canvas>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">Top 5 แผนก — มูลค่าสต๊อคทุกรอบ<span class="card-tag">MULTI-LINE</span></div>
+    <div class="legend" id="multiLineLeg"></div>
+    <div style="position:relative;height:280px;">
+      <canvas id="multiLine" role="img" aria-label="แนวโน้มสต๊อค 5 แผนกสูงสุด">แนวโน้มสต๊อค Top 5 แผนก</canvas>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: DEPT -->
+<div class="page" id="page-dept">
+  <div class="page-header">
+    <div>
+      <div class="page-title">เปรียบเทียบสต๊อครายแผนก</div>
+      <div class="page-subtitle">มูลค่าสต๊อคอะไหล่ ณ 15 พ.ค. 2569 เรียงจากมากไปน้อย</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">มูลค่าสต๊อคปัจจุบันรายแผนก (บาท)<span class="card-tag">HORIZONTAL BAR</span></div>
+    <div style="position:relative;height:360px;">
+      <canvas id="hbarChart" role="img" aria-label="มูลค่าสต๊อคปัจจุบันรายแผนก">สต๊อครายแผนก ณ 15 พ.ค. 2569</canvas>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">ผลต่างมูลค่าสต๊อค (เม.ย. → พ.ค. 69)<span class="card-tag">CHANGE</span></div>
+    <div id="changeBars" class="bar-list"></div>
+  </div>
+</div>
+
+<!-- PAGE: TABLE -->
+<div class="page" id="page-table">
+  <div class="page-header">
+    <div>
+      <div class="page-title">ตารางข้อมูลสต๊อคครบถ้วน</div>
+      <div class="page-subtitle">มูลค่าสต๊อคอะไหล่รายแผนก 6 รอบ (หน่วย: บาท)</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>แผนก</th><th>สถานะ</th>
+            <th>ธ.ค. 67</th><th>ม.ค. 69</th><th>ก.พ. 69</th>
+            <th>มี.ค. 69</th><th>เม.ย. 69</th><th>พ.ค. 69</th>
+            <th>ผลต่าง</th>
+          </tr>
+        </thead>
+        <tbody id="fullTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: INSIGHT -->
+<div class="page" id="page-insight">
+  <div class="page-header">
+    <div>
+      <div class="page-title">ข้อสังเกตและข้อเสนอแนะ</div>
+      <div class="page-subtitle">วิเคราะห์โดยผู้เชี่ยวชาญด้านพัสดุและคลังสินค้า</div>
+    </div>
+  </div>
+  <div class="insight red">
+    <div class="insight-title">สต๊อครวมลดลงอย่างมีนัยสำคัญ 70.9%</div>
+    <div class="insight-body">มูลค่าสต๊อครวมลดลงจาก 16,155,653 บาท (ธ.ค. 2567) เหลือเพียง 4,708,823 บาท (พ.ค. 2569) ควรตรวจสอบว่ามาจากการเบิกใช้งานจริง การตัดจำหน่ายพัสดุชำรุด หรือมีการโอนย้ายออกจากคลัง</div>
+  </div>
+  <div class="insight red">
+    <div class="insight-title">งานรถตัดอ้อย (N27) — สต๊อคหายไปทั้งหมดในรอบเดียว</div>
+    <div class="insight-body">แผนกนี้มีมูลค่าสต๊อคสูงถึง 3,285,930 บาท ใน เม.ย. 2569 แต่กลับเป็น 0 บาท ใน พ.ค. 2569 ซึ่งผิดปกติมาก ต้องตรวจสอบ SAP ด่วน: มีการทำ GI จำนวนมาก หรือมีปัญหาข้อมูล หรือมีการโอนย้ายออกจากคลัง</div>
+  </div>
+  <div class="insight amber">
+    <div class="insight-title">ลูกหีบ (N2Q) — สต๊อคสูงสุดแต่ลดลงต่อเนื่อง</div>
+    <div class="insight-body">แผนกลูกหีบมีมูลค่าสต๊อคสูงสุด 937,781 บาท (19.9% ของรวม) แต่ลดลงจากจุดสูงสุด 4,096,682 บาท ถึง 77.1% ควรวางแผนสั่งซื้ออะไหล่ทดแทนก่อนเปิดฤดูหีบอ้อยครั้งถัดไป</div>
+  </div>
+  <div class="insight amber">
+    <div class="insight-title">หม้อเคี่ยว และ หม้อปั่น — ลดลงต่อเนื่อง ควรเฝ้าระวัง</div>
+    <div class="insight-body">หม้อเคี่ยว (N2S) และ หม้อปั่น (N2T) รวมกันคิดเป็น 31% ของสต๊อคปัจจุบัน แต่มีแนวโน้มลดลง ควรติดตามระดับ Safety Stock และตรวจสอบ Lead Time การสั่งซื้ออะไหล่</div>
+  </div>
+  <div class="insight green">
+    <div class="insight-title">เก็บเกี่ยว และ เครื่องมือควบคุม — เติมสต๊อคล่วงหน้า</div>
+    <div class="insight-body">สองแผนกนี้มีสต๊อคเพิ่มขึ้นในรอบล่าสุด: เก็บเกี่ยว +172,005 บาท และ เครื่องมือควบคุม +2,195 บาท บ่งชี้ว่ามีการวางแผนเตรียมความพร้อมที่ดี</div>
+  </div>
+  <div class="insight blue">
+    <div class="insight-title">4 แผนกที่สต๊อคไม่เปลี่ยนแปลงหลายงวด — ควรตรวจสอบ</div>
+    <div class="insight-body">แผนก เครื่องมือเกษตร, บำรุงเครื่องกล, ห้องบรรจุ และ ไฟฟ้าผลิต มีมูลค่าสต๊อคคงเดิมหลายงวดติดต่อกัน อาจหมายความว่าไม่มีการเบิก-รับอะไหล่เลย ควรตรวจสอบความถูกต้องของข้อมูล SAP</div>
+  </div>
+  <div class="insight blue">
+    <div class="insight-title">ซ่อมบำรุงไฟฟ้า (N2J) และ หม้อต้ม (N2R) — ไม่มีสต๊อคตลอดช่วง</div>
+    <div class="insight-body">สองแผนกนี้ไม่มีมูลค่าสต๊อคในระบบ SAP เลยตลอด 6 รอบ อาจใช้วิธีการจัดซื้อตรง (Direct Purchase) หรือยืมจากคลังกลาง ควรพิจารณาว่าควรเปิด Storage Location หรือไม่</div>
+  </div>
+
+  <div class="card" style="margin-top:6px;">
+    <div class="card-title">สรุปตัวเลขสำคัญ</div>
+    <div class="stat-list">
+      <div class="stat-row"><span class="stat-key">จำนวนแผนกที่มีสต๊อค</span><span class="stat-val">12 แผนก</span></div>
+      <div class="stat-row"><span class="stat-key">แผนกที่ไม่มีสต๊อค</span><span class="stat-val">2 แผนก</span></div>
+      <div class="stat-row"><span class="stat-key">แผนกสต๊อคเพิ่มขึ้น</span><span class="stat-val" style="color:var(--green)">2 แผนก</span></div>
+      <div class="stat-row"><span class="stat-key">แผนกสต๊อคลดลง</span><span class="stat-val" style="color:var(--red)">5 แผนก</span></div>
+      <div class="stat-row"><span class="stat-key">แผนกสต๊อคคงเดิม</span><span class="stat-val" style="color:var(--gray)">4 แผนก</span></div>
+      <div class="stat-row"><span class="stat-key">มูลค่าลดลงมากสุด</span><span class="stat-val" style="color:var(--red)">งานรถตัดอ้อย -3,285,930 บ.</span></div>
+      <div class="stat-row"><span class="stat-key">มูลค่าเพิ่มขึ้นมากสุด</span><span class="stat-val" style="color:var(--green)">เก็บเกี่ยว +172,005 บ.</span></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const depts = [
+  {no:1,name:'เก็บเกี่ยว',loc:'N2P',v:[2085756,24332,313613,6396,255035,427040],diff:172005,status:'up'},
+  {no:2,name:'เครื่องมือเกษตร (น้ำมัน)',loc:'N2V',v:[2677929,159819,403295,211263,217837,128919],diff:-88918,status:'down'},
+  {no:3,name:'เครื่องมือเกษตร',loc:'N2V',v:[1540761,13111,13111,9631,9631,9631],diff:0,status:'flat'},
+  {no:4,name:'ชลประทาน',loc:'0900',v:[599634,400939,400939,400939,548236,546172],diff:-2064,status:'down'},
+  {no:5,name:'บำรุงเครื่องกล',loc:'0800',v:[1391449,942699,942699,890952,890952,890952],diff:0,status:'flat'},
+  {no:6,name:'ห้องบรรจุ',loc:'1400',v:[18957,744,744,744,744,744],diff:0,status:'flat'},
+  {no:7,name:'ไฟฟ้าผลิต',loc:'N2U',v:[268766,147593,147593,147593,147593,147593],diff:0,status:'flat'},
+  {no:8,name:'ลูกหีบ',loc:'N2Q',v:[4096682,834228,1915758,1340187,1335111,937781],diff:-397330,status:'down'},
+  {no:9,name:'เครื่องมือควบคุม',loc:'1100',v:[18957,145828,154287,154287,154287,156482],diff:2195,status:'up'},
+  {no:10,name:'หม้อเคี่ยว',loc:'N2S',v:[1884662,597665,553960,541775,647699,616118],diff:-31581,status:'down'},
+  {no:11,name:'หม้อปั่น',loc:'N2T',v:[1572099,948881,1035785,870392,870392,847392],diff:-23000,status:'down'},
+  {no:12,name:'ซ่อมบำรุงไฟฟ้า',loc:'N2J',v:[0,0,0,0,0,0],diff:0,status:'none'},
+  {no:13,name:'หม้อต้ม',loc:'N2R',v:[0,0,0,0,0,0],diff:0,status:'none'},
+  {no:14,name:'งานรถตัดอ้อย (น้ำมัน)',loc:'N27',v:[0,1800931,1277787,2199205,3285930,0],diff:-3285930,status:'down'},
+];
+const periods = ['ธ.ค. 67','ม.ค. 69','ก.พ. 69','มี.ค. 69','เม.ย. 69','พ.ค. 69'];
+const totals = [16155653,6016770,7159571,6773364,8363446,4708823];
+const pieColors = ['#185FA5','#639922','#E24B4A','#BA7517','#534AB7','#0F6E56','#D4537E','#888780','#4D9FFF'];
+const barColors = {up:'#639922',down:'#E24B4A',flat:'#888780',none:'#378ADD'};
+const statusLabel = {up:'เพิ่มขึ้น',down:'ลดลง',flat:'คงเดิม',none:'ไม่มี Stock'};
+const fmt = v => v===0?'—':v.toLocaleString('th-TH');
+const fmtD = v => v>0?'+'+v.toLocaleString('th-TH'):v<0?v.toLocaleString('th-TH'):'0';
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+
+// Status Cards
+const sc = document.getElementById('statusCards');
+depts.filter(d=>d.status!=='none').forEach(d=>{
+  const cls = {up:'chip-up',down:'chip-down',flat:'chip-flat'}[d.status];
+  sc.innerHTML += `<div style="background:var(--bg3);border-radius:8px;padding:12px 14px;">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">${d.loc}</div>
+    <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px;">${d.name}</div>
+    <div style="font-family:var(--mono);font-size:14px;color:var(--blue);margin-bottom:4px;">${fmt(d.v[5])}</div>
+    <span class="status-chip ${cls}">${statusLabel[d.status]}</span>
+  </div>`;
+});
+
+// Trend line Overview
+new Chart(document.getElementById('trendChartOv'),{type:'line',data:{labels:periods,datasets:[{label:'รวม',data:totals,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.07)',fill:true,tension:.35,pointRadius:5,pointBackgroundColor:'#185FA5',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y.toLocaleString('th-TH')+' บ.'}}},scales:{x:{ticks:{color:'#888780',font:{size:11}},grid:{display:false}},y:{ticks:{color:'#888780',font:{size:10},callback:v=>(v/1e6).toFixed(1)+' ล.'},grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+// Pie Overview
+const pieData = depts.filter(d=>d.v[5]>0).map((d,i)=>({name:d.name,val:d.v[5],color:pieColors[i%pieColors.length]}));
+const totalPie = pieData.reduce((a,b)=>a+b.val,0);
+new Chart(document.getElementById('pieChartOv'),{type:'doughnut',data:{labels:pieData.map(d=>d.name),datasets:[{data:pieData.map(d=>d.val),backgroundColor:pieData.map(d=>d.color),borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed.toLocaleString('th-TH')+' บ.'}}}}});
+const pl=document.getElementById('pieLegOv');
+pieData.forEach(d=>{const pct=Math.round(d.val/totalPie*100);pl.innerHTML+=`<span style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text2);"><span style="width:8px;height:8px;border-radius:2px;background:${d.color};flex-shrink:0;"></span>${d.name} ${pct}%</span>`;});
+
+// Trend bar
+new Chart(document.getElementById('trendBar'),{type:'bar',data:{labels:periods,datasets:[{label:'มูลค่ารวม',data:totals,backgroundColor:['#B5D4F4','#B5D4F4','#B5D4F4','#B5D4F4','#B5D4F4','#185FA5'],borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y.toLocaleString('th-TH')+' บ.'}}},scales:{x:{ticks:{color:'#888780'},grid:{display:false}},y:{ticks:{color:'#888780',callback:v=>(v/1e6).toFixed(1)+' ล.'},grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+// Multi-line top5
+const top5 = depts.filter(d=>d.v[5]>0).sort((a,b)=>b.v[5]-a.v[5]).slice(0,5);
+const mlColors = ['#185FA5','#E24B4A','#639922','#BA7517','#534AB7'];
+const ml=document.getElementById('multiLineLeg');
+top5.forEach((d,i)=>{ml.innerHTML+=`<div class="leg"><div class="leg-sq" style="background:${mlColors[i]}"></div>${d.name}</div>`;});
+new Chart(document.getElementById('multiLine'),{type:'line',data:{labels:periods,datasets:top5.map((d,i)=>({label:d.name,data:d.v,borderColor:mlColors[i],backgroundColor:'transparent',tension:.3,pointRadius:4,borderWidth:2,borderDash:i>2?[4,3]:undefined}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('th-TH')+' บ.'}}},scales:{x:{ticks:{color:'#888780',font:{size:11}},grid:{display:false}},y:{ticks:{color:'#888780',font:{size:10},callback:v=>(v/1e6).toFixed(1)+' ล.'},grid:{color:'rgba(0,0,0,0.05)'}}}}});
+
+// Horizontal bar
+const hdata = depts.filter(d=>d.v[5]>0).sort((a,b)=>b.v[5]-a.v[5]);
+new Chart(document.getElementById('hbarChart'),{type:'bar',data:{labels:hdata.map(d=>d.name),datasets:[{label:'สต๊อคปัจจุบัน',data:hdata.map(d=>d.v[5]),backgroundColor:hdata.map(d=>barColors[d.status]||'#888780'),borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.x.toLocaleString('th-TH')+' บาท'}}},scales:{x:{ticks:{color:'#888780',callback:v=>v.toLocaleString('th-TH')},grid:{color:'rgba(0,0,0,0.05)'}},y:{ticks:{color:'#5f5e5a',font:{size:11}},grid:{display:false}}}}});
+
+// Change bars
+const cbEl = document.getElementById('changeBars');
+const cdata = depts.filter(d=>d.diff!==0).sort((a,b)=>a.diff-b.diff);
+const maxAbs = Math.max(...cdata.map(d=>Math.abs(d.diff)));
+cdata.forEach(d=>{
+  const pct=Math.round(Math.abs(d.diff)/maxAbs*100);
+  const col=d.diff>0?'#639922':'#E24B4A';
+  cbEl.innerHTML+=`<div class="bar-row"><span class="bar-name">${d.name}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col};"></div></div><span class="bar-amt ${d.diff<0?'neg':'pos'}">${fmtD(d.diff)}</span></div>`;
+});
+
+// Full table
+const tb = document.getElementById('fullTableBody');
+depts.forEach(d=>{
+  const [lbl,cls] = {up:['เพิ่มขึ้น','chip-up'],down:['ลดลง','chip-down'],flat:['คงเดิม','chip-flat'],none:['ไม่มี Stock','chip-none']}[d.status];
+  const dc = d.diff>0?'pos':d.diff<0?'neg':'zero';
+  tb.innerHTML+=`<tr><td style="color:var(--text3);">${d.no}.</td><td style="color:var(--text);">${d.name}</td><td><span class="status-chip ${cls}">${lbl}</span></td>${d.v.map(v=>`<td>${fmt(v)}</td>`).join('')}<td class="${dc}">${fmtD(d.diff)}</td></tr>`;
+});
+tb.innerHTML+=`<tr class="total-row"><td colspan="3">รวมทั้งหมด</td>${totals.map(v=>`<td>${v.toLocaleString('th-TH')}</td>`).join('')}<td class="neg">-3,654,623</td></tr>`;
+</script>
+</body>
+</html>
